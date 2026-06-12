@@ -396,3 +396,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
 > - [x] 错误码已定义（12 个错误场景）
 > - [x] **技术选型已包含版本信息**（Spring Boot 3.2.5、MyBatis-Plus 3.5.5、MySQL 8.3.0、Hutool 5.8.25、Lombok 1.18.22）
 > - [x] 若跳过 proposal.md，影响范围已在此补齐（不适用，已有 proposal.md）
+
+##### 场景：本地循环迭代验证（kb-loop-iteration-marker）
+- **当** 运行 ci/local-sdd-loop.sh
+- **预期** 本场景被 ingest 并可检索
