@@ -1,0 +1,40 @@
+tenant_id: team-erp-fi
+project_id: klerp3-fi
+
+source:
+  sdd_paths:
+    - "openspec/**/*.md"
+    - "arch.md"
+    - "ds/**/*.md"
+
+parser:
+  section_rules:
+    - artifact: spec
+      requirement_heading: 4
+      scenario_heading: 5
+    - artifact: design
+      section_heading: 4
+
+metadata:
+  modules: [FI, CO, MM, SD]
+  status_enum: [current, superseded, partially_superseded, deprecated]
+
+ingest:
+  trigger: ci
+  on_branch: main
+
+embedding:
+  model: Qwen/Qwen3-Embedding-4B
+  deploy: tei
+  dimension: 1024
+
+retrieval:
+  status_filter_first: true
+  fusion: rrf
+  require_citation: true
+
+graph:
+  engine: apache_age
+
+code_validation:
+  tool: gitnexus

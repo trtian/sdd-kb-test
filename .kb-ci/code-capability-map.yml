@@ -1,0 +1,11 @@
+# 业务代码路径 → capability（CI 中 GitNexus / git diff 映射用）
+# 在业务仓 .gitlab-ci.yml 设置 CODE_CAPABILITY_MAP 指向本文件或业务仓副本
+
+account-document-head-create:
+  path_patterns:
+    - "**/account/document/head/**"
+    - "**/AccountDocumentHead*"
+    - "**/account-document-head*"
+  sdd_paths:
+    - "**/account-document-head-create/**"
+    - "**/specs/account-document-head-create/**"
