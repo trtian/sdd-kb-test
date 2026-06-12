@@ -408,3 +408,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
 ##### 场景：增量AGE验证-20260613000925（kb-incr-20260613000925）
 - **当** 运行 ci/local-sdd-incremental.sh
 - **预期** ingest 增量写入 AGE 且可检索
+
+##### 场景：增量AGE验证-20260613003923（kb-incr-20260613003923）
+- **当** 运行 ci/local-sdd-incremental.sh
+- **预期** ingest 增量写入 AGE 且可检索
