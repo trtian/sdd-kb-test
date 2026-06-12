@@ -400,3 +400,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
 ##### 场景：本地循环迭代验证（kb-loop-iteration-marker）
 - **当** 运行 ci/local-sdd-loop.sh
 - **预期** 本场景被 ingest 并可检索
+
+##### 场景：增量AGE验证-20260612235554（kb-incr-20260612235554）
+- **当** 运行 ci/local-sdd-incremental.sh
+- **预期** ingest 增量写入 AGE 且可检索
