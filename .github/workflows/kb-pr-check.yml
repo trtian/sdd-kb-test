@@ -1,0 +1,79 @@
+# sdd-kb-test — 自包含 KB 闭环测试仓
+# kb-scripts/ 由 ci/sync-kb-scripts-to-test-repo.sh 同步
+
+name: KB PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-yaml curl
+
+      - name: PR analyze (KB skills)
+        env:
+          ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
+          ENGINEERING_KB_API: ${{ secrets.ENGINEERING_KB_API }}
+          ENGINEERING_KB_PROJECT_ID: ${{ secrets.ENGINEERING_KB_PROJECT_ID || '1' }}
+          ENGINEERING_KB_TOKEN: ${{ secrets.ENGINEERING_KB_TOKEN }}
+          CODE_REPO: ${{ github.workspace }}
+          GIT_BASE: origin/main
+          GIT_HEAD: HEAD
+          CLAUDE_PR: 'false'
+          RUN_GITNEXUS: 'false'
+        run: |
+          if [ -z "$ENGINEERING_KB_API" ]; then
+            echo "::warning::ENGINEERING_KB_API not set — running offline scope + fallback review only"
+            mkdir -p .kb-ci
+            bash "$ENGINEERING_KB_SCRIPTS/ci/gitnexus-scope-hints.sh" || true
+            python3 -c "
+import json, datetime
+from pathlib import Path
+p=Path('.kb-ci/pr-review.json')
+p.parent.mkdir(exist_ok=True)
+p.write_text(json.dumps({
+  'ok': True, 'mode': 'offline',
+  'verdict': 'approve',
+  'summary': 'ENGINEERING_KB_API missing — configure secret for live KB verify',
+  'confidence': 0.5
+}, indent=2))
+"
+            exit 0
+          fi
+          bash "$ENGINEERING_KB_SCRIPTS/ci/kb-pr-analyze.sh"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## KB PR Check" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f .kb-ci/kb-gitnexus-verify.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            head -c 2000 .kb-ci/kb-gitnexus-verify.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f .kb-ci/pr-review.json ]; then
+            echo '### pr-review' >> "$GITHUB_STEP_SUMMARY"
+            cat .kb-ci/pr-review.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kb-pr-artifacts
+          path: .kb-ci/

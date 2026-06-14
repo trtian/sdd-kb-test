@@ -1,0 +1,51 @@
+# 片段：合并到业务代码仓 .gitlab-ci.yml
+# 前提：Runner 可访问 Engineering KB API；可选安装 Node、Python3、npx
+
+variables:
+  ENGINEERING_KB_API: "http://engineering-kb.internal:8090/api"
+  ENGINEERING_KB_PROJECT_ID: "1"
+  CODE_CAPABILITY_MAP: "$CI_PROJECT_DIR/kb/code-capability-map.yml"
+  # 业务仓可复制 工程化知识库/samples/code-capability-map.yml 到 kb/
+
+.engineering_kb_before_script:
+  before_script:
+    - mkdir -p .kb-ci
+    - apt-get update -qq && apt-get install -y -qq python3 python3-yaml curl nodejs npm 2>/dev/null || true
+
+engineering-kb-pipeline:
+  stage: deploy
+  extends: .engineering_kb_before_script
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - openspec/**/*
+        - "**/*.java"
+        - "**/kb/**"
+  variables:
+    CODE_REPO: $CI_PROJECT_DIR
+    SDD_PATH: $CI_PROJECT_DIR/openspec
+    GIT_COMMIT: $CI_COMMIT_SHA
+    GIT_BRANCH: $CI_COMMIT_REF_NAME
+    CI_PASSED: "true"
+    RUN_GITNEXUS: "true"
+  script:
+    # 克隆或挂载工程化知识库脚本（按你们实际路径调整）
+    - export KB_SCRIPTS="${ENGINEERING_KB_SCRIPTS:-../工程化知识库}"
+    - bash "$KB_SCRIPTS/ci/kb-ci-pipeline.sh"
+  artifacts:
+    paths:
+      - .kb-ci/gitnexus-scope-hints.json
+      - .kb-ci/supersede-suggestions.json
+    expire_in: 7 days
+
+# 仅 GitNexus 范围（供 MR 评论 / 冲突 Agent 预检）
+engineering-kb-scope-hints:
+  stage: test
+  extends: .engineering_kb_before_script
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - bash "${ENGINEERING_KB_SCRIPTS:-../工程化知识库}/ci/gitnexus-scope-hints.sh"
+  artifacts:
+    paths:
+      - .kb-ci/gitnexus-scope-hints.json

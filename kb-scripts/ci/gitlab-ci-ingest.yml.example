@@ -1,0 +1,16 @@
+# 片段：合并到业务代码仓 .gitlab-ci.yml
+engineering-kb-ingest:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - openspec/**/*
+        - "**/*.md"
+  script:
+    - |
+      curl -sf -X POST "${ENGINEERING_KB_API}/projects/${ENGINEERING_KB_PROJECT_ID}/ingest" \
+        -H "Content-Type: application/json" \
+        -d "{\"sourcePath\":\"${CI_PROJECT_DIR}/openspec\",\"gitCommit\":\"${CI_COMMIT_SHA}\",\"headingLevel\":4}"
+  variables:
+    ENGINEERING_KB_API: "http://engineering-kb-backend:8090/api"
+    ENGINEERING_KB_PROJECT_ID: "1"
