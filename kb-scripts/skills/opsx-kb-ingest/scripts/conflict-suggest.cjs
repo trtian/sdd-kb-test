@@ -15,18 +15,20 @@ function parseArgs(argv) {
   return args;
 }
 
-function requestJson(url, body) {
+function requestJson(url, body, token) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const lib = u.protocol === 'https:' ? https : http;
     const payload = JSON.stringify(body);
+    const headers = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) };
+    if (token) headers.Authorization = `Bearer ${token}`;
     const req = lib.request(
       {
         hostname: u.hostname,
         port: u.port || (u.protocol === 'https:' ? 443 : 80),
         path: u.pathname,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+        headers,
       },
       (res) => {
         let data = '';
@@ -55,9 +57,11 @@ async function main() {
     scopeHintsJson = fs.readFileSync(hintsPath, 'utf8');
   }
 
+  const token = process.env.ENGINEERING_KB_TOKEN || process.env.E2E_AUTH_TOKEN || '';
   const { status, body } = await requestJson(
     `${apiBase}/projects/${projectId}/conflict-suggestions`,
-    { gitCommit, scopeHintsJson }
+    { gitCommit, scopeHintsJson },
+    token
   );
   if (status >= 400 || body.code !== 0) {
     console.log(JSON.stringify({ ok: false, error: body.message || status }));

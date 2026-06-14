@@ -13,6 +13,11 @@ fi
 export ENGINEERING_KB_API="${ENGINEERING_KB_API:-http://localhost:8090/api}"
 API_BASE="$ENGINEERING_KB_API"
 PROJECT_ID="${ENGINEERING_KB_PROJECT_ID:-1}"
+if [[ -z "${ENGINEERING_KB_TOKEN:-}" && -f "$KB_SCRIPTS/ci/e2e-auth.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$KB_SCRIPTS/ci/e2e-auth.sh"
+  export ENGINEERING_KB_TOKEN="${ENGINEERING_KB_TOKEN:-${E2E_AUTH_TOKEN:-}}"
+fi
 GIT_BASE="${GIT_BASE:-HEAD~1}"
 GIT_HEAD="${GIT_HEAD:-HEAD}"
 OUT_DIR="$CODE_REPO/.kb-ci"
@@ -36,11 +41,14 @@ node "$KB_SCRIPTS/skills/opsx-kb-pr-diff/scripts/analyze-diff.cjs" \
 
 echo "==> [gather-3] KB conflict hints (tool → opsx-kb-ingest)"
 if curl -sf --max-time 8 "$API_BASE/health" >/dev/null 2>&1; then
-  node "$KB_SCRIPTS/skills/opsx-kb-ingest/scripts/conflict-suggest.cjs" \
+  if ! node "$KB_SCRIPTS/skills/opsx-kb-ingest/scripts/conflict-suggest.cjs" \
     --project-id="$PROJECT_ID" \
     --scope-hints-path="$OUT_DIR/gitnexus-scope-hints.json" \
     --git-commit="${GITHUB_SHA:-$(git -C "$CODE_REPO" rev-parse HEAD)}" \
-    > "$OUT_DIR/supersede-suggestions.json"
+    > "$OUT_DIR/supersede-suggestions.json" 2>/dev/null; then
+    echo '{"ok":false,"mode":"conflict-tool-error","suggestions":[],"hint":"Agent may proceed without supersede hints"}' \
+      > "$OUT_DIR/supersede-suggestions.json"
+  fi
 else
   echo '{"ok":true,"mode":"kb-unreachable","suggestions":[],"hint":"Agent must note KB offline"}' \
     > "$OUT_DIR/supersede-suggestions.json"
