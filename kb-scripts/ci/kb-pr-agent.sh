@@ -38,6 +38,7 @@ fi
 AGENT_SKILLS=$(skill_block opsx-kb-pr-diff; skill_block opsx-kb-gitnexus-verify; skill_block opsx-kb-pr-review; skill_block opsx-kb-retrieve)
 
 run_claude_agent() {
+  local raw="$OUT_DIR/pr-review.raw.txt"
   claude -p "$(cat "$KB_SCRIPTS/ci/claude-pr-review.prompt.md")" \
     --append-system-prompt "$(cat <<EOF
 You are the PR review Agent. Follow the Skills below. Tools already ran; do NOT re-run scripts.
@@ -50,9 +51,36 @@ Read these files in $OUT_DIR:
 
 $AGENT_SKILLS
 
-Output ONLY valid JSON for pr-review.json schema in the user prompt.
+Output ONLY valid JSON for pr-review.json schema in the user prompt. No markdown, no code fences, no prose.
 EOF
-)" > "$OUT_DIR/pr-review.json"
+)" > "$raw"
+  python3 - <<'PY'
+import json, re, sys
+from pathlib import Path
+raw_path = Path(sys.argv[1])
+out_path = Path(sys.argv[2])
+text = raw_path.read_text(encoding="utf-8").strip()
+for candidate in (text,):
+    try:
+        obj = json.loads(candidate)
+        out_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+        sys.exit(0)
+    except json.JSONDecodeError:
+        pass
+m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+if m:
+    obj = json.loads(m.group(1))
+    out_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    sys.exit(0)
+m = re.search(r"\{.*\}", text, re.S)
+if m:
+    obj = json.loads(m.group(0))
+    out_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    sys.exit(0)
+print("ERROR: could not parse Agent JSON from claude output", file=sys.stderr)
+sys.exit(1)
+PY
+  "$raw" "$OUT_DIR/pr-review.json"
 }
 
 echo "==> [agent] Claude PR review (opsx-kb-pr-review) — REQUIRED"
