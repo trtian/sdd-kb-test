@@ -416,3 +416,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
 ##### 场景：增量AGE验证-20260614163719（kb-incr-20260614163719）
 - **当** 运行 ci/local-sdd-incremental.sh
 - **预期** ingest 增量写入 AGE 且可检索
+
+##### 场景：GitHub PR 闭环验证（github-pr-20260614191815）
+- **当** PR merge 后触发 kb-merge-ingest workflow
+- **预期** 入库后可检索本场景

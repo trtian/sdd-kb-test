@@ -19,3 +19,4 @@ public class AccountDocumentHeadService {
         // 实现需与 SDD 当前有效规则一致（由 opsx-kb-gitnexus-verify 比对）
     }
 }
+// github-pr-loop-20260614191815
