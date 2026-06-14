@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "question": "场景：GitHub PR 闭环验证（github-pr-20260614191815）",
+  "evidenceLevel": "CURRENT_EVIDENCE",
+  "diffVerdict": "pass",
+  "topHit": {
+    "logicalSectionId": "klerp3-fi:account-document-head-create:方法-create",
+    "headingPath": "方法：create",
+    "gitCommit": "local-sample"
+  },
+  "snippets": [
+    {
+      "logicalSectionId": "klerp3-fi:account-document-head-create:方法-create",
+      "headingPath": "方法：create",
+      "status": "current",
+      "evidenceRole": "current_fact",
+      "snippet": "#### 方法：create\n\n**基本信息**：\n- 类：`AccountDocumentHeadBizServiceImpl`\n- 方法签名：`public AccountDocumentHead create(AccountDocumentHead head)`\n- 注解：`@Override` + `@Transactional(rollbackFor = Exception.class)"
+    },
+    {
+      "logicalSectionId": "klerp3-fi:account-document-head-create:表名-account-document-head-bkpf-对应",
+      "headingPath": "表名：account_document_head（BKPF 对应）",
+      "status": "current",
+      "evidenceRole": "current_fact",
+      "snippet": "#### 表名：account_document_head（BKPF 对应）\n\n本 Capability 仅执行 **INSERT** 操作，不涉及表结构变更。\n\n**涉及的核心字段**（仅列出本 Capability 写入的字段）：\n\n| 字段名（实体） | 数据类型 | 必填 | 默认值 | 说明 | 索引 |\n|-------|---------|------|--------|------"
+    },
+    {
+      "logicalSectionId": "klerp3-fi:account-document-head-create:6-2-3-汇率计算",
+      "headingPath": "6.2.3 汇率计算",
+      "status": "current",
+      "evidenceRole": "current_fact",
+      "snippet": "#### 6.2.3 汇率计算\n\n```java\nprivate void fillExchangeRate(AccountDocumentHead head) {\n    CompanyCode cc = getCompanyCode(head.getCompanyCode());\n    String localCurrency = cc.getCurrency();  // T001-WAE"
+    },
+    {
+      "logicalSectionId": "klerp3-fi:account-document-head-create:6-2-1-过账年度和期间计算",
+      "headingPath": "6.2.1 过账年度和期间计算",
+      "status": "current",
+      "evidenceRole": "current_fact",
+      "snippet": "#### 6.2.1 过账年度和期间计算\n\n```java\nprivate void fillFiscalYearAndPeriod(AccountDocumentHead head) {\n    Date postingDate = head.getPostingDate();\n    Calendar cal = Calendar.getInstance();\n    cal.setTime("
+    },
+    {
+      "logicalSectionId": "klerp3-fi:account-document-head-create:6-2-2-凭证编号生成",
+      "headingPath": "6.2.2 凭证编号生成",
+      "status": "current",
+      "evidenceRole": "current_fact",
+      "snippet": "#### 6.2.2 凭证编号生成\n\n```java\nprivate static final String NUM_RANGE_OBJECT_FI = \"RF_BELEG\";\n\nprivate String generateDocumentNumber(AccountDocumentHead head) {\n    DocumentType dt = getDocumentType(head.g"
+    }
+  ],
+  "scope": {
+    "changedFiles": [
+      "openspec/changes/specs/account-document-head-create/spec.md",
+      "src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java"
+    ],
+    "capabilities": []
+  },
+  "codeCompare": {
+    "expectPhrases": [
+      "凭证日期不能为空",
+      "过账日期不能为空"
+    ],
+    "codeHits": [],
+    "matched": [],
+    "missing": [
+      "凭证日期不能为空",
+      "过账日期不能为空"
+    ]
+  },
+  "verdict": "warn",
+  "hint": "代码与 current SDD 可能不一致，请 opsx-kb-pr-review / claude -p 复核"
+}

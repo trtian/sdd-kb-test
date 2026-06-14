@@ -1,1 +1,13 @@
-{"capabilities":[],"changedFiles":[],"gitBase":"HEAD~1","gitHead":"HEAD"}
+{
+  "gitBase": "HEAD~1",
+  "gitHead": "HEAD",
+  "changedFiles": [
+    "openspec/changes/specs/account-document-head-create/spec.md",
+    "src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java"
+  ],
+  "matchedCapabilitiesFromCode": [],
+  "matchedCapabilitiesFromSdd": [],
+  "matchedCapabilities": [],
+  "gitnexusSymbols": [],
+  "mapFile": "/Users/qinqiong/昆仑/1-N/工程化知识库/workspace/sdd-kb-test/kb-scripts/samples/code-capability-map.yml"
+}

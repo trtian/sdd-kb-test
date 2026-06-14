@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "summary": {
+    "filesChanged": 2,
+    "openspecFiles": 1,
+    "codeFiles": 1,
+    "headingChanges": 1,
+    "capabilities": [],
+    "sddOnly": false,
+    "codeOnly": false
+  },
+  "files": [
+    "openspec/changes/specs/account-document-head-create/spec.md",
+    "src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java"
+  ],
+  "headingChanges": [
+    {
+      "file": "openspec/changes/specs/account-document-head-create/spec.md",
+      "level": 5,
+      "text": "场景：GitHub PR 闭环验证（github-pr-20260614191815）",
+      "op": "+"
+    }
+  ],
+  "searchQueries": [
+    "场景：GitHub PR 闭环验证（github-pr-20260614191815）"
+  ],
+  "diffVerdict": "pass",
+  "hint": "diff 已映射到 capability / 检索 query"
+}

@@ -1,0 +1,21 @@
+diff --git a/openspec/changes/specs/account-document-head-create/spec.md b/openspec/changes/specs/account-document-head-create/spec.md
+index 5375853..ad3d90f 100644
+--- a/openspec/changes/specs/account-document-head-create/spec.md
++++ b/openspec/changes/specs/account-document-head-create/spec.md
+@@ -416,3 +416,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
+ ##### 场景：增量AGE验证-20260614163719（kb-incr-20260614163719）
+ - **当** 运行 ci/local-sdd-incremental.sh
+ - **预期** ingest 增量写入 AGE 且可检索
++
++##### 场景：GitHub PR 闭环验证（github-pr-20260614191815）
++- **当** PR merge 后触发 kb-merge-ingest workflow
++- **预期** 入库后可检索本场景
+diff --git a/src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java b/src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java
+index d0f6e9b..0d75e21 100644
+--- a/src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java
++++ b/src/main/java/com/klerp/fi/account/document/head/AccountDocumentHeadService.java
+@@ -19,3 +19,4 @@ public class AccountDocumentHeadService {
+         // 实现需与 SDD 当前有效规则一致（由 opsx-kb-gitnexus-verify 比对）
+     }
+ }
++// github-pr-loop-20260614191815

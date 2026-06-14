@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "mode": "rule-based-fallback",
+  "verdict": "approve",
+  "summary": "diff=pass verify=warn",
+  "diffVerdict": "pass",
+  "verifyVerdict": "warn",
+  "changedCapabilities": [],
+  "searchQueries": [
+    "场景：GitHub PR 闭环验证（github-pr-20260614191815）"
+  ],
+  "conflictCount": 0
+}
