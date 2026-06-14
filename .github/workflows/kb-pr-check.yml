@@ -1,6 +1,4 @@
-# sdd-kb-test — PR 自动审核
-# 事件：pull_request → 自动跑 kb-pr-check workflow
-
+# sdd-kb-test — PR 自动审核（self-hosted：本机 CC Switch + localhost KB）
 name: KB PR Check
 
 on:
@@ -14,36 +12,36 @@ permissions:
 
 jobs:
   pr-analyze:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, kb-local]
+    env:
+      ENGINEERING_KB_API: http://127.0.0.1:8090/api
+      ENGINEERING_KB_PROJECT_ID: "1"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install deps
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-yaml curl
-
-      - name: Install Claude Code CLI (Agent runtime)
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Verify local toolchain (CC Switch / claude CLI)
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::ANTHROPIC_API_KEY required — PR review is Agent-driven, not rule fallback"
-            exit 1
-          fi
-          npm install -g @anthropic-ai/claude-code@latest
+          command -v claude || { echo "::error::claude not found — CC Switch or brew install claude-code"; exit 1; }
+          command -v python3 || exit 1
           claude --version
+          if [ -f "$HOME/.claude/settings.json" ]; then
+            echo "Using CC Switch / ~/.claude/settings.json"
+          else
+            echo "::warning::No ~/.claude/settings.json — ensure ANTHROPIC_* env is set for claude -p"
+          fi
+
+      - name: Check local KB API
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$ENGINEERING_KB_API/health" || echo "000")
+          if [ "$code" != "200" ]; then
+            echo "::warning::KB API $ENGINEERING_KB_API health=$code — start: 工程化知识库/ci/run-backend.sh"
+          fi
 
       - name: Gather PR artifacts (tools)
         env:
           ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
-          ENGINEERING_KB_API: ${{ secrets.ENGINEERING_KB_API }}
-          ENGINEERING_KB_PROJECT_ID: ${{ secrets.ENGINEERING_KB_PROJECT_ID || '1' }}
-          ENGINEERING_KB_TOKEN: ${{ secrets.ENGINEERING_KB_TOKEN }}
           CODE_REPO: ${{ github.workspace }}
           GIT_BASE: origin/main
           GIT_HEAD: HEAD
@@ -51,7 +49,6 @@ jobs:
 
       - name: AI Agent review (required)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
           CODE_REPO: ${{ github.workspace }}
         run: bash "$ENGINEERING_KB_SCRIPTS/ci/kb-pr-agent.sh"
@@ -79,12 +76,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          command -v gh >/dev/null || { echo "::warning::gh not installed — skip PR comment"; exit 0; }
           VERDICT=$(python3 -c "import json; print(json.load(open('.kb-ci/pr-review.json')).get('verdict','?'))")
           SUMMARY=$(python3 -c "import json; print(json.load(open('.kb-ci/pr-review.json')).get('summary',''))")
-          gh pr comment "${{ github.event.pull_request.number }}" --body "## KB Agent Review
+          gh pr comment "${{ github.event.pull_request.number }}" --body "## KB Agent Review (self-hosted)
           **Verdict**: \`${VERDICT}\`
           ${SUMMARY}
-          Artifacts: workflow run → kb-pr-artifacts"
+          Runner: \`kb-local\` on macOS"
 
       - uses: actions/upload-artifact@v4
         if: always()

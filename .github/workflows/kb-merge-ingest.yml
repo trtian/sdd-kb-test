@@ -1,3 +1,4 @@
+# merge → 本机 KB ingest（self-hosted + localhost API）
 name: KB Merge Ingest
 
 on:
@@ -6,29 +7,27 @@ on:
 
 jobs:
   ingest-validate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, kb-local]
+    env:
+      ENGINEERING_KB_API: http://127.0.0.1:8090/api
+      ENGINEERING_KB_PROJECT_ID: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-yaml curl
+
+      - name: Check local KB API
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$ENGINEERING_KB_API/health" || echo "000")
+          if [ "$code" != "200" ]; then
+            echo "::error::KB API not reachable at $ENGINEERING_KB_API — start backend first"
+            exit 1
+          fi
 
       - name: Ingest + validate
         env:
           ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
-          ENGINEERING_KB_API: ${{ secrets.ENGINEERING_KB_API }}
-          ENGINEERING_KB_PROJECT_ID: ${{ secrets.ENGINEERING_KB_PROJECT_ID || '1' }}
-          ENGINEERING_KB_TOKEN: ${{ secrets.ENGINEERING_KB_TOKEN }}
           CODE_REPO: ${{ github.workspace }}
-          RUN_GITNEXUS: 'false'
-        run: |
-          if [ -z "$ENGINEERING_KB_API" ]; then
-            echo "::error::ENGINEERING_KB_API required for merge ingest (public URL to KB, e.g. ngrok → /api)"
-            echo "Configure in Settings → Secrets and variables → Actions"
-            exit 1
-          fi
-          bash "$ENGINEERING_KB_SCRIPTS/ci/kb-ci-pipeline.sh"
+          RUN_GITNEXUS: "false"
+        run: bash "$ENGINEERING_KB_SCRIPTS/ci/kb-ci-pipeline.sh"
 
       - uses: actions/upload-artifact@v4
         if: always()
