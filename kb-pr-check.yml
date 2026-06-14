@@ -1,0 +1,39 @@
+# PR 检测 — AI Agent 驱动（非规则 fallback）
+
+version: "2"
+
+trigger:
+  # GitHub 上 opening/updating PR 自动触发 — 见 .github/workflows/kb-pr-check.yml
+  event: pull_request
+  base: main
+  automatic: true
+
+architecture:
+  tooling:   # 脚本 = 收集证据，不做最终 approve/block
+    - gather: ci/kb-pr-gather.sh
+  agent:     # AI = 唯一裁决（必须）
+    skill: opsx-kb-pr-review
+    script: ci/kb-pr-agent.sh
+    runtime: claude -p
+    required: true
+  forbidden_in_ci:
+    - rule-based-fallback   # 生产禁止；仅 ALLOW_RULE_FALLBACK=true 本地调试
+
+pipeline:
+  gather:
+    - opsx-kb-gitnexus-ci → gitnexus-scope-hints.json
+    - opsx-kb-pr-diff → pr-diff-analysis.json
+    - opsx-kb-ingest → supersede-suggestions.json
+    - opsx-kb-gitnexus-verify → kb-gitnexus-verify.json
+  agent:
+    - opsx-kb-pr-review → pr-review.json
+
+local:
+  full: ./ci/kb-pr-analyze.sh    # = gather + agent
+  gather_only: ./ci/kb-pr-gather.sh
+  agent_only: ./ci/kb-pr-agent.sh
+
+secrets:
+  ANTHROPIC_API_KEY: required_for_agent
+  ENGINEERING_KB_API: required_for_live_kb
+  ENGINEERING_KB_PROJECT_ID: "1"

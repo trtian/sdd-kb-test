@@ -24,8 +24,9 @@ jobs:
           RUN_GITNEXUS: 'false'
         run: |
           if [ -z "$ENGINEERING_KB_API" ]; then
-            echo "::warning::Skip ingest — set ENGINEERING_KB_API secret (public URL to your KB)"
-            exit 0
+            echo "::error::ENGINEERING_KB_API required for merge ingest (public URL to KB, e.g. ngrok → /api)"
+            echo "Configure in Settings → Secrets and variables → Actions"
+            exit 1
           fi
           bash "$ENGINEERING_KB_SCRIPTS/ci/kb-ci-pipeline.sh"
 

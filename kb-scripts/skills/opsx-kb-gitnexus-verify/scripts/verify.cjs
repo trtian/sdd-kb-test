@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * KB current 规则 + 代码仓比对（GitNexus scope / 路径映射辅助）
+ * KB current 规则 + 代码仓比对（GitNexus scope / diff 分析辅助）
  */
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +12,7 @@ function readJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-function walkFiles(dir, patterns, limit = 80) {
+function walkFiles(dir, limit = 80) {
   const out = [];
   if (!fs.existsSync(dir)) return out;
   function walk(d, depth) {
@@ -26,12 +26,12 @@ function walkFiles(dir, patterns, limit = 80) {
     }
   }
   walk(dir, 0);
-  return out.filter((f) => patterns.some((p) => f.includes(p.replace(/\*\*/g, '').replace(/\*/g, '')) || true));
+  return out;
 }
 
 function scanCodeForPhrases(codeRepo, phrases) {
   const src = path.join(codeRepo, 'src');
-  const files = walkFiles(src, ['account', 'document', 'head']);
+  const files = walkFiles(src);
   const hits = [];
   for (const file of files) {
     const content = fs.readFileSync(file, 'utf8');
@@ -46,9 +46,12 @@ function scanCodeForPhrases(codeRepo, phrases) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const question = args.question || args.q || '需求项：填充前必填字段校验';
   const codeRepo = args['code-repo'] || process.env.CODE_REPO || '.';
   const cfg = configFromEnv(args);
+  const diffAnalysis = readJson(args['diff-analysis-path']);
+  const hints = readJson(args['scope-hints-path']);
+  const question =
+    args.question || args.q || diffAnalysis?.searchQueries?.[0] || '需求项：填充前必填字段校验';
 
   const searchData = await apiCall(cfg, 'POST', `/projects/${cfg.projectId}/search`, { query: question });
   const hits = searchData.hits || [];
@@ -65,7 +68,6 @@ async function main() {
     snippet: (h.snippet || '').slice(0, 200),
   }));
 
-  const hints = readJson(args['scope-hints-path']);
   const changedFiles = hints?.changedFiles || hints?.files || [];
   const capabilities = hints?.capabilities || hints?.matchedCapabilities || [];
 
@@ -81,7 +83,7 @@ async function main() {
   const matched = expectPhrases.filter((p) => codeHits.some((c) => c.phrase.includes(p) || p.includes(c.phrase)));
   const missing = expectPhrases.filter((p) => !matched.includes(p));
 
-  let verdict = 'pass';
+  let verdict = diffAnalysis?.diffVerdict === 'warn' ? 'warn' : 'pass';
   if (searchData.evidenceLevel === 'NO_CURRENT_EVIDENCE') verdict = 'fail';
   else if (missing.length && codeHits.length === 0) verdict = 'warn';
   else if (missing.length) verdict = 'warn';
@@ -89,6 +91,7 @@ async function main() {
   ok({
     question,
     evidenceLevel: searchData.evidenceLevel,
+    diffVerdict: diffAnalysis?.diffVerdict,
     topHit: {
       logicalSectionId: top.logicalSectionId,
       headingPath: top.headingPath,
@@ -96,16 +99,12 @@ async function main() {
     },
     snippets,
     scope: { changedFiles, capabilities },
-    codeCompare: {
-      expectPhrases,
-      codeHits,
-      matched,
-      missing,
-    },
+    codeCompare: { expectPhrases, codeHits, matched, missing },
     verdict,
-    hint: verdict === 'pass'
-      ? 'KB current 规则与代码关键字一致'
-      : '代码与 current SDD 可能不一致，请人工或 claude -p 复核',
+    hint:
+      verdict === 'pass'
+        ? 'KB current 规则与代码关键字一致'
+        : '代码与 current SDD 可能不一致，请 opsx-kb-pr-review / claude -p 复核',
   });
 }
 

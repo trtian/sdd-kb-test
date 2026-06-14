@@ -1,10 +1,11 @@
-# sdd-kb-test — 自包含 KB 闭环测试仓
-# kb-scripts/ 由 ci/sync-kb-scripts-to-test-repo.sh 同步
+# sdd-kb-test — PR 自动审核
+# 事件：pull_request → 自动跑 kb-pr-check workflow
 
 name: KB PR Check
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main]
 
 permissions:
@@ -26,7 +27,18 @@ jobs:
       - name: Install deps
         run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-yaml curl
 
-      - name: PR analyze (KB skills)
+      - name: Install Claude Code CLI (Agent runtime)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY required — PR review is Agent-driven, not rule fallback"
+            exit 1
+          fi
+          npm install -g @anthropic-ai/claude-code@latest
+          claude --version
+
+      - name: Gather PR artifacts (tools)
         env:
           ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
           ENGINEERING_KB_API: ${{ secrets.ENGINEERING_KB_API }}
@@ -35,42 +47,44 @@ jobs:
           CODE_REPO: ${{ github.workspace }}
           GIT_BASE: origin/main
           GIT_HEAD: HEAD
-          CLAUDE_PR: 'false'
-          RUN_GITNEXUS: 'false'
-        run: |
-          if [ -z "$ENGINEERING_KB_API" ]; then
-            echo "::warning::ENGINEERING_KB_API not set — running offline scope + fallback review only"
-            mkdir -p .kb-ci
-            bash "$ENGINEERING_KB_SCRIPTS/ci/gitnexus-scope-hints.sh" || true
-            python3 -c "
-import json, datetime
-from pathlib import Path
-p=Path('.kb-ci/pr-review.json')
-p.parent.mkdir(exist_ok=True)
-p.write_text(json.dumps({
-  'ok': True, 'mode': 'offline',
-  'verdict': 'approve',
-  'summary': 'ENGINEERING_KB_API missing — configure secret for live KB verify',
-  'confidence': 0.5
-}, indent=2))
-"
-            exit 0
-          fi
-          bash "$ENGINEERING_KB_SCRIPTS/ci/kb-pr-analyze.sh"
+        run: bash "$ENGINEERING_KB_SCRIPTS/ci/kb-pr-gather.sh"
 
-      - name: Summary
-        if: always()
+      - name: AI Agent review (required)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ENGINEERING_KB_SCRIPTS: ${{ github.workspace }}/kb-scripts
+          CODE_REPO: ${{ github.workspace }}
+        run: bash "$ENGINEERING_KB_SCRIPTS/ci/kb-pr-agent.sh"
+
+      - name: Enforce Agent verdict
         run: |
-          echo "## KB PR Check" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f .kb-ci/kb-gitnexus-verify.json ]; then
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            head -c 2000 .kb-ci/kb-gitnexus-verify.json >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f .kb-ci/pr-review.json ]; then
-            echo '### pr-review' >> "$GITHUB_STEP_SUMMARY"
-            cat .kb-ci/pr-review.json >> "$GITHUB_STEP_SUMMARY"
-          fi
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path(".kb-ci/pr-review.json")
+          if not p.exists():
+              print("::error::pr-review.json missing — Agent step failed")
+              sys.exit(1)
+          r = json.loads(p.read_text())
+          verdict = r.get("verdict", "")
+          if verdict == "approve":
+              print(f"Agent verdict: {verdict}")
+              sys.exit(0)
+          print(f"::error::Agent verdict: {verdict} — {r.get('summary', '')}")
+          sys.exit(1)
+          PY
+
+      - name: Post PR comment with Agent verdict
+        if: always() && hashFiles('.kb-ci/pr-review.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERDICT=$(python3 -c "import json; print(json.load(open('.kb-ci/pr-review.json')).get('verdict','?'))")
+          SUMMARY=$(python3 -c "import json; print(json.load(open('.kb-ci/pr-review.json')).get('summary',''))")
+          gh pr comment "${{ github.event.pull_request.number }}" --body "## KB Agent Review
+          **Verdict**: \`${VERDICT}\`
+          ${SUMMARY}
+          Artifacts: workflow run → kb-pr-artifacts"
 
       - uses: actions/upload-artifact@v4
         if: always()

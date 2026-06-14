@@ -11,7 +11,7 @@ rsync -a --delete \
   --exclude '.git' \
   "$ROOT/ci/" "$TARGET/ci/"
 
-for s in opsx-kb-cli opsx-kb-ingest opsx-kb-gitnexus-verify opsx-kb-retrieve; do
+for s in opsx-kb-cli opsx-kb-ingest opsx-kb-gitnexus-verify opsx-kb-retrieve opsx-kb-pr-diff opsx-kb-pr-review; do
   mkdir -p "$TARGET/skills/$s"
   rsync -a "$ROOT/skills/$s/" "$TARGET/skills/$s/"
 done
