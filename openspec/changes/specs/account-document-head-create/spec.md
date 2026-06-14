@@ -424,3 +424,7 @@ public AccountDocumentHead create(AccountDocumentHead head);
 ##### 场景：GitHub PR 闭环验证（github-pr-20260614205446）
 - **当** PR merge 后触发 kb-merge-ingest workflow
 - **预期** 入库后可检索本场景
+
+##### 场景：GitHub PR 闭环验证（github-pr-20260614213114）
+- **当** PR merge 后触发 kb-merge-ingest workflow
+- **预期** 入库后可检索本场景
