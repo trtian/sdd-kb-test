@@ -4,8 +4,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-API_BASE="${ENGINEERING_KB_API:-http://localhost:8090/api}"
+export ENGINEERING_KB_API="${ENGINEERING_KB_API:-http://localhost:8090/api}"
+API_BASE="$ENGINEERING_KB_API"
 PROJECT_ID="${ENGINEERING_KB_PROJECT_ID:-1}"
+if [[ -z "${ENGINEERING_KB_TOKEN:-}" && -f "$ROOT/ci/e2e-auth.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$ROOT/ci/e2e-auth.sh"
+  export ENGINEERING_KB_TOKEN="${ENGINEERING_KB_TOKEN:-${E2E_AUTH_TOKEN:-}}"
+fi
 CODE_REPO="${CODE_REPO:-${CI_PROJECT_DIR:-.}}"
 SDD_PATH="${SDD_PATH:-$CODE_REPO/openspec}"
 GIT_COMMIT="${GIT_COMMIT:-${CI_COMMIT_SHA:-local}}"
@@ -29,10 +35,13 @@ node "$ROOT/skills/opsx-kb-ingest/scripts/ingest.cjs" \
   --scope-hints-path="$SCOPE_JSON"
 
 echo "==> [3/5] Conflict supersede suggestions"
-node "$ROOT/skills/opsx-kb-ingest/scripts/conflict-suggest.cjs" \
+mkdir -p "$CODE_REPO/.kb-ci"
+if ! node "$ROOT/skills/opsx-kb-ingest/scripts/conflict-suggest.cjs" \
   --project-id="$PROJECT_ID" \
   --scope-hints-path="$SCOPE_JSON" \
-  --git-commit="$GIT_COMMIT" > "$CODE_REPO/.kb-ci/supersede-suggestions.json"
+  --git-commit="$GIT_COMMIT" > "$CODE_REPO/.kb-ci/supersede-suggestions.json"; then
+  echo '{"ok":false,"mode":"conflict-tool-error","suggestions":[]}' > "$CODE_REPO/.kb-ci/supersede-suggestions.json"
+fi
 cat "$CODE_REPO/.kb-ci/supersede-suggestions.json"
 
 if [[ "$CLAUDE_SUPERSEDE" == "true" ]] && command -v claude >/dev/null 2>&1; then
